@@ -44,5 +44,5 @@ Start-Process powershell -ArgumentList @(
 Start-Process powershell -ArgumentList @(
   "-NoExit",
   "-Command",
-  "Set-Location '$Frontend'; `$env:NEXT_PUBLIC_API_BASE_URL='http://localhost:$BackendPort'; pnpm dev -- --port $FrontendPort"
+  "Set-Location '$Frontend'; `$env:NEXT_PUBLIC_API_BASE_URL='http://localhost:$BackendPort'; pnpm exec next dev --port $FrontendPort"
 )
