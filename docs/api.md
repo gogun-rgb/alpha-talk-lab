@@ -71,9 +71,35 @@ Response includes:
 - `actual_prices`: aligned daily prices.
 - `news`: latest yfinance news metadata when available.
 - `keywords`: frequency-based keywords from news titles.
+- `technical_analysis`: trend, momentum, risk, relative-strength scores and comparison verdict.
 - `research_note`: observations, hypotheses, backtest ideas, and limitations.
 - `markdown_note`: downloadable research-note text.
 - `warnings`: recoverable data, news, or AI warnings.
+
+Technical-analysis excerpt:
+
+```json
+{
+  "technical_analysis": {
+    "ticker_a": {
+      "ticker": "NVDA",
+      "total_score": 72,
+      "trend_score": 25,
+      "momentum_score": 19,
+      "risk_score": 13,
+      "relative_strength_score": 15,
+      "data_sufficiency": "sufficient"
+    },
+    "ticker_b": {},
+    "comparison": {
+      "leader": "NVDA",
+      "score_difference": 14,
+      "verdict": "현재 기술적 지표에서는 NVDA가 상대적으로 우세합니다.",
+      "confidence": "moderate"
+    }
+  }
+}
+```
 
 ## Error Responses
 

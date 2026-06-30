@@ -25,7 +25,14 @@ from app.services.metrics import (
     return_correlation,
 )
 from app.services.news import extract_keywords, fetch_news
-from app.services.research_note import build_rule_based_note, generate_openai_note, pct
+from app.services.research_note import (
+    build_rule_based_note,
+    determine_news_availability,
+    generate_openai_note,
+    news_availability_warnings,
+    pct,
+)
+from app.services.technical_analysis import compare_technical_attractiveness
 
 
 def _metric_snapshot(ticker: str, prices: pd.Series) -> MetricSnapshot:
@@ -59,6 +66,12 @@ def _markdown(response: CompareResponse) -> str:
         f"- {a} 연환산 변동성: {pct(response.metrics.ticker_a.annualized_volatility)}",
         f"- {b} 연환산 변동성: {pct(response.metrics.ticker_b.annualized_volatility)}",
         f"- 상관계수: {response.metrics.common.correlation if response.metrics.common.correlation is not None else 'N/A'}",
+        "",
+        "## 기술적 매력도",
+        f"- {a} 총점: {response.technical_analysis.ticker_a.total_score}",
+        f"- {b} 총점: {response.technical_analysis.ticker_b.total_score}",
+        f"- 판정: {response.technical_analysis.comparison.verdict}",
+        "- 기술적 매력도는 매수 추천 점수가 아니며 미래 수익률을 의미하지 않습니다.",
         "",
         "## 관찰",
     ]
@@ -131,6 +144,11 @@ def compare_tickers(request: CompareRequest) -> CompareResponse:
             data_end=aligned.index[-1].date().isoformat(),
         ),
     )
+    availability = determine_news_availability(ticker_a, ticker_b, {ticker_a: news_a, ticker_b: news_b})
+    for warning in news_availability_warnings(ticker_a, ticker_b, availability):
+        if warning not in warnings:
+            warnings.append(warning)
+    technical_analysis = compare_technical_attractiveness(ticker_a, ticker_b, prices_a, prices_b)
 
     fallback = build_rule_based_note(
         request=CompareRequest(
@@ -186,6 +204,7 @@ def compare_tickers(request: CompareRequest) -> CompareResponse:
         ],
         news={ticker_a: news_a, ticker_b: news_b},
         keywords=keywords,
+        technical_analysis=technical_analysis,
         research_note=note,
         markdown_note="",
         warnings=warnings,

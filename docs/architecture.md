@@ -29,6 +29,7 @@ Important modules:
 - `app/services/news.py`: yfinance news parsing and keyword extraction from titles.
 - `app/services/query_parser.py`: dictionary-based Korean and English ticker extraction.
 - `app/services/research_note.py`: OpenAI structured-note generation and deterministic fallback.
+- `app/services/technical_analysis.py`: rule-based technical attractiveness scoring.
 - `app/services/research.py`: orchestrates the full comparison response.
 
 ## Failure Model

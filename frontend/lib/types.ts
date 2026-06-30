@@ -105,6 +105,50 @@ export interface ResearchNote {
   limitations: string[];
 }
 
+export interface TechnicalIndicators {
+  sma_20?: number | null;
+  sma_60?: number | null;
+  rsi_14?: number | null;
+  return_20d?: number | null;
+  return_60d?: number | null;
+  annualized_volatility?: number | null;
+  max_drawdown?: number | null;
+  downside_volatility?: number | null;
+  recent_20d_drawdown?: number | null;
+  return_to_volatility?: number | null;
+  price_above_sma_20?: boolean | null;
+  price_above_sma_60?: boolean | null;
+  sma_20_above_sma_60?: boolean | null;
+  sma_20_slope_positive?: boolean | null;
+  sma_60_slope_positive?: boolean | null;
+}
+
+export interface TechnicalScore {
+  ticker: string;
+  total_score: number;
+  trend_score: number;
+  momentum_score: number;
+  risk_score: number;
+  relative_strength_score: number;
+  indicators: TechnicalIndicators;
+  strengths: string[];
+  weaknesses: string[];
+  data_sufficiency: "sufficient" | "partial" | "insufficient";
+}
+
+export interface TechnicalComparison {
+  leader: string | null;
+  score_difference: number;
+  verdict: string;
+  confidence: "low" | "moderate" | "high";
+}
+
+export interface TechnicalAnalysis {
+  ticker_a: TechnicalScore;
+  ticker_b: TechnicalScore;
+  comparison: TechnicalComparison;
+}
+
 export interface CompareResponse {
   metadata: {
     query: string | null;
@@ -125,6 +169,7 @@ export interface CompareResponse {
   actual_prices: ActualPricePoint[];
   news: Record<string, NewsItem[]>;
   keywords: Record<string, KeywordCount[]>;
+  technical_analysis: TechnicalAnalysis;
   research_note: ResearchNote;
   markdown_note: string;
   warnings: string[];

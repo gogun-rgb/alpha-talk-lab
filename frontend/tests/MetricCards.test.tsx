@@ -50,6 +50,38 @@ const result: CompareResponse = {
   actual_prices: [],
   news: {},
   keywords: {},
+  technical_analysis: {
+    ticker_a: {
+      ticker: "NVDA",
+      total_score: 70,
+      trend_score: 20,
+      momentum_score: 18,
+      risk_score: 17,
+      relative_strength_score: 15,
+      indicators: { rsi_14: 55, return_20d: 0.05, price_above_sma_20: true, price_above_sma_60: true },
+      strengths: ["현재 가격이 20일 이동평균선 위에 있습니다."],
+      weaknesses: [],
+      data_sufficiency: "sufficient"
+    },
+    ticker_b: {
+      ticker: "AMD",
+      total_score: 62,
+      trend_score: 18,
+      momentum_score: 15,
+      risk_score: 17,
+      relative_strength_score: 12,
+      indicators: { rsi_14: 50, return_20d: 0.02, price_above_sma_20: true, price_above_sma_60: null },
+      strengths: [],
+      weaknesses: ["선택한 기간이 짧아 일부 중기 지표가 제외되었습니다."],
+      data_sufficiency: "partial"
+    },
+    comparison: {
+      leader: "NVDA",
+      score_difference: 8,
+      verdict: "현재 기술적 지표에서는 NVDA가 상대적으로 우세합니다.",
+      confidence: "moderate"
+    }
+  },
   research_note: {
     summary: "",
     observations: [],

@@ -10,6 +10,10 @@ from app.models import (
     Metrics,
     NormalizedPricePoint,
     ResearchNote,
+    TechnicalAnalysis,
+    TechnicalComparison,
+    TechnicalIndicators,
+    TechnicalScore,
 )
 
 
@@ -40,6 +44,38 @@ def fake_response() -> CompareResponse:
         ),
         common=CommonMetrics(correlation=0.5, trading_days=10, data_start="2026-01-01", data_end="2026-01-15"),
     )
+    technical_analysis = TechnicalAnalysis(
+        ticker_a=TechnicalScore(
+            ticker="NVDA",
+            total_score=70,
+            trend_score=20,
+            momentum_score=18,
+            risk_score=17,
+            relative_strength_score=15,
+            indicators=TechnicalIndicators(rsi_14=55, return_20d=0.05),
+            strengths=["최근 20거래일 수익률이 양수입니다."],
+            weaknesses=[],
+            data_sufficiency="partial",
+        ),
+        ticker_b=TechnicalScore(
+            ticker="AMD",
+            total_score=62,
+            trend_score=18,
+            momentum_score=15,
+            risk_score=17,
+            relative_strength_score=12,
+            indicators=TechnicalIndicators(rsi_14=50, return_20d=0.02),
+            strengths=[],
+            weaknesses=[],
+            data_sufficiency="partial",
+        ),
+        comparison=TechnicalComparison(
+            leader="NVDA",
+            score_difference=8,
+            verdict="현재 기술적 지표에서는 NVDA가 상대적으로 우세합니다.",
+            confidence="moderate",
+        ),
+    )
     return CompareResponse(
         metadata=Metadata(
             query="엔비디아와 AMD 비교",
@@ -58,6 +94,7 @@ def fake_response() -> CompareResponse:
         actual_prices=[],
         news={"NVDA": [], "AMD": []},
         keywords={"NVDA": [], "AMD": []},
+        technical_analysis=technical_analysis,
         research_note=ResearchNote(
             summary="summary",
             observations=[],
@@ -105,3 +142,4 @@ def test_compare_response_schema(monkeypatch) -> None:
     assert body["metadata"]["ticker_a"] == "NVDA"
     assert "metrics" in body
     assert "normalized_prices" in body
+    assert "technical_analysis" in body

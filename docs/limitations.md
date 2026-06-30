@@ -6,6 +6,7 @@
 - The app does not adjust for survivorship bias when users choose currently listed stocks.
 - Backtests must avoid referencing future data when generating signals.
 - Repeatedly tuning thresholds, lookback windows, or holding periods can overfit historical data.
+- Technical attractiveness weights are empirical rules and require separate validation before any trading use.
 - Transaction costs, bid-ask spread, taxes, and slippage can materially change results.
 - Corporate actions and vendor adjustments may affect historical price continuity.
 - Past performance does not guarantee future results.

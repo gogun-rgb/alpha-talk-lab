@@ -1,4 +1,5 @@
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $Root = Split-Path -Parent $PSScriptRoot
 $Backend = Join-Path $Root "backend"
@@ -26,4 +27,4 @@ finally {
   Pop-Location
 }
 
-Write-Host "모든 검증 명령이 통과했습니다."
+Write-Host "All verification commands passed."

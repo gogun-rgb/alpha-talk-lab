@@ -7,6 +7,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 SUPPORTED_PERIODS = {"1mo", "3mo", "6mo", "1y"}
 Period = Literal["1mo", "3mo", "6mo", "1y"]
+NewsAvailabilityStatus = Literal[
+    "both_available",
+    "only_ticker_a_available",
+    "only_ticker_b_available",
+    "none_available",
+]
+DataSufficiency = Literal["sufficient", "partial", "insufficient"]
+TechnicalConfidence = Literal["low", "moderate", "high"]
 
 
 class QueryParseRequest(BaseModel):
@@ -110,6 +118,12 @@ class KeywordCount(BaseModel):
     count: int
 
 
+class NewsAvailability(BaseModel):
+    status: NewsAvailabilityStatus
+    ticker_a_count: int
+    ticker_b_count: int
+
+
 class Observation(BaseModel):
     title: str
     evidence: str
@@ -144,6 +158,50 @@ class ResearchNote(BaseModel):
     limitations: list[str]
 
 
+class TechnicalIndicators(BaseModel):
+    sma_20: float | None = None
+    sma_60: float | None = None
+    rsi_14: float | None = None
+    return_20d: float | None = None
+    return_60d: float | None = None
+    annualized_volatility: float | None = None
+    max_drawdown: float | None = None
+    downside_volatility: float | None = None
+    recent_20d_drawdown: float | None = None
+    return_to_volatility: float | None = None
+    price_above_sma_20: bool | None = None
+    price_above_sma_60: bool | None = None
+    sma_20_above_sma_60: bool | None = None
+    sma_20_slope_positive: bool | None = None
+    sma_60_slope_positive: bool | None = None
+
+
+class TechnicalScore(BaseModel):
+    ticker: str
+    total_score: float
+    trend_score: float
+    momentum_score: float
+    risk_score: float
+    relative_strength_score: float
+    indicators: TechnicalIndicators
+    strengths: list[str]
+    weaknesses: list[str]
+    data_sufficiency: DataSufficiency
+
+
+class TechnicalComparison(BaseModel):
+    leader: str | None
+    score_difference: float
+    verdict: str
+    confidence: TechnicalConfidence
+
+
+class TechnicalAnalysis(BaseModel):
+    ticker_a: TechnicalScore
+    ticker_b: TechnicalScore
+    comparison: TechnicalComparison
+
+
 class CompareResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -154,6 +212,7 @@ class CompareResponse(BaseModel):
     actual_prices: list[ActualPricePoint]
     news: dict[str, list[NewsItem]]
     keywords: dict[str, list[KeywordCount]]
+    technical_analysis: TechnicalAnalysis
     research_note: ResearchNote
     markdown_note: str
     warnings: list[str] = Field(default_factory=list)

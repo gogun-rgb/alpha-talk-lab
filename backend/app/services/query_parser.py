@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from app.errors import UserFacingError
 from app.models import QueryParseResponse
@@ -41,6 +42,39 @@ COMPANY_TICKER_MAP: dict[str, str] = {
     "rivn": "RIVN",
 }
 
+EXCLUDED_UPPERCASE_TOKENS = {
+    "AI",
+    "API",
+    "CEO",
+    "CFO",
+    "CTO",
+    "ETF",
+    "GPU",
+    "CPU",
+    "IPO",
+    "MVP",
+    "USD",
+    "US",
+    "USA",
+    "KPI",
+    "RAG",
+    "LLM",
+    "ML",
+    "YOY",
+    "EPS",
+    "PER",
+    "ROE",
+    "ROI",
+}
+
+
+@dataclass(frozen=True)
+class TickerCandidate:
+    ticker: str
+    priority: int
+    position: int
+    source: str
+
 
 PERIOD_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(1\s*개월|한\s*달|최근\s*한\s*달|1mo|1m)", re.I), "1mo"),
@@ -57,6 +91,34 @@ def parse_period(query: str) -> str:
     return "6mo"
 
 
+def _collect_candidates(query: str) -> list[TickerCandidate]:
+    candidates: list[TickerCandidate] = []
+
+    for match in re.finditer(r"\$([A-Za-z][A-Za-z0-9.-]{0,9})", query):
+        ticker = match.group(1).upper()
+        if ticker not in EXCLUDED_UPPERCASE_TOKENS:
+            candidates.append(TickerCandidate(ticker=ticker, priority=1, position=match.start(), source="explicit"))
+
+    lowered = query.lower()
+    for name, ticker in COMPANY_TICKER_MAP.items():
+        start = lowered.find(name)
+        if start >= 0:
+            candidates.append(TickerCandidate(ticker=ticker, priority=2, position=start, source="dictionary"))
+
+    for match in re.finditer(r"(?<![$A-Za-z])([A-Z]{1,5})(?![A-Za-z])", query.upper()):
+        ticker = match.group(1)
+        if ticker in EXCLUDED_UPPERCASE_TOKENS:
+            continue
+        candidates.append(TickerCandidate(ticker=ticker, priority=3, position=match.start(), source="uppercase"))
+
+    best_by_ticker: dict[str, TickerCandidate] = {}
+    for candidate in candidates:
+        current = best_by_ticker.get(candidate.ticker)
+        if current is None or (candidate.priority, candidate.position) < (current.priority, current.position):
+            best_by_ticker[candidate.ticker] = candidate
+    return sorted(best_by_ticker.values(), key=lambda item: (item.priority, item.position))
+
+
 def parse_query(query: str) -> QueryParseResponse:
     stripped = query.strip()
     if not stripped:
@@ -64,22 +126,16 @@ def parse_query(query: str) -> QueryParseResponse:
     if len(stripped) > 500:
         raise UserFacingError("질문은 500자 이하로 입력해 주세요.")
 
-    candidates: list[tuple[int, str]] = []
-    for match in re.finditer(r"(?<![A-Za-z])([A-Z]{1,5})(?![A-Za-z])", stripped.upper()):
-        candidates.append((match.start(), match.group(1)))
-
-    lowered = stripped.lower()
-    for name, ticker in COMPANY_TICKER_MAP.items():
-        start = lowered.find(name)
-        if start >= 0:
-            candidates.append((start, ticker))
-
-    found: list[str] = []
-    for _, ticker in sorted(candidates, key=lambda item: item[0]):
-        if ticker not in found:
-            found.append(ticker)
+    candidates = _collect_candidates(stripped)
+    found = [candidate.ticker for candidate in candidates]
 
     warnings: list[str] = []
+    top_priority_count = 0
+    if candidates:
+        top_priority = candidates[0].priority
+        top_priority_count = sum(1 for candidate in candidates if candidate.priority == top_priority)
+    if top_priority_count > 2:
+        warnings.append("여러 종목 후보가 인식되었습니다. 화면에서 티커를 확인해 주세요.")
     if len(found) == 1:
         warnings.append("한 종목만 인식했습니다. 두 번째 티커를 직접 입력해 주세요.")
     if len(found) == 0:

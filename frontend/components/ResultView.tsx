@@ -6,6 +6,7 @@ import { formatPercent, formatPrice } from "@/lib/format";
 import type { CompareResponse } from "@/lib/types";
 import { MetricCards } from "./MetricCards";
 import { NormalizedChart } from "./NormalizedChart";
+import { TechnicalAnalysisSection } from "./TechnicalAnalysisSection";
 
 function downloadMarkdown(markdown: string, filename: string) {
   const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
@@ -21,6 +22,8 @@ export function ResultView({ result, onReset }: { result: CompareResponse; onRes
   const [copied, setCopied] = useState(false);
   const tickerA = result.metadata.ticker_a;
   const tickerB = result.metadata.ticker_b;
+  const modeLabel = result.metadata.ai_mode === "openai" ? "OpenAI 구조화 분석" : "AI API 미설정: 규칙 기반 분석 사용 중";
+  const displayWarnings = result.warnings.filter((warning) => warning !== modeLabel);
 
   async function copyMarkdown() {
     await navigator.clipboard.writeText(result.markdown_note);
@@ -49,9 +52,9 @@ export function ResultView({ result, onReset }: { result: CompareResponse; onRes
 
         <div className="mt-4 flex flex-wrap gap-2">
           <span className="rounded-lg border border-line bg-canvas px-3 py-1 text-xs font-medium text-muted">
-            {result.metadata.ai_mode === "openai" ? "OpenAI 구조화 분석" : "AI API 미설정: 규칙 기반 분석 사용 중"}
+            {modeLabel}
           </span>
-          {result.warnings.map((warning) => (
+          {displayWarnings.map((warning) => (
             <span key={warning} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-900">
               {warning}
             </span>
@@ -60,6 +63,7 @@ export function ResultView({ result, onReset }: { result: CompareResponse; onRes
       </section>
 
       <MetricCards result={result} />
+      <TechnicalAnalysisSection technicalAnalysis={result.technical_analysis} />
       <NormalizedChart result={result} />
 
       <section className="grid gap-4 lg:grid-cols-2">
