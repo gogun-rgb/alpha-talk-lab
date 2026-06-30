@@ -92,6 +92,7 @@ cd D:\CodexProjects\alpha-talk-lab
 ```
 
 브라우저에서 `http://localhost:3000`을 엽니다. 백엔드는 `http://localhost:8000`에서 실행됩니다.
+해당 포트가 이미 사용 중이면 `scripts/dev.ps1`이 3001/8001처럼 가까운 대체 포트를 선택해 출력합니다.
 
 개별 실행:
 

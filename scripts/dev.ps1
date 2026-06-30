@@ -19,21 +19,30 @@ function Test-PortInUse([int]$Port) {
   }
 }
 
-if (Test-PortInUse 8000) { throw "8000 포트가 이미 사용 중입니다." }
-if (Test-PortInUse 3000) { throw "3000 포트가 이미 사용 중입니다." }
+function Get-FreePort([int[]]$Ports, [string]$Name) {
+  foreach ($Port in $Ports) {
+    if (-not (Test-PortInUse $Port)) {
+      return $Port
+    }
+  }
+  throw "$Name 포트를 찾지 못했습니다. 후보: $($Ports -join ', ')"
+}
+
+$BackendPort = Get-FreePort @(8000, 8001, 8002) "FastAPI"
+$FrontendPort = Get-FreePort @(3000, 3001, 3002) "Next.js"
 if (-not (Test-Path -LiteralPath $VenvPython)) { throw ".venv가 없습니다. scripts/setup.ps1을 먼저 실행해 주세요." }
 
-Write-Host "FastAPI: http://localhost:8000"
-Write-Host "Next.js: http://localhost:3000"
+Write-Host "FastAPI: http://localhost:$BackendPort"
+Write-Host "Next.js: http://localhost:$FrontendPort"
 
 Start-Process powershell -ArgumentList @(
   "-NoExit",
   "-Command",
-  "Set-Location '$Backend'; & '$VenvPython' -m uvicorn app.main:app --reload --port 8000"
+  "Set-Location '$Backend'; & '$VenvPython' -m uvicorn app.main:app --reload --port $BackendPort"
 )
 
 Start-Process powershell -ArgumentList @(
   "-NoExit",
   "-Command",
-  "Set-Location '$Frontend'; `$env:NEXT_PUBLIC_API_BASE_URL='http://localhost:8000'; pnpm dev"
+  "Set-Location '$Frontend'; `$env:NEXT_PUBLIC_API_BASE_URL='http://localhost:$BackendPort'; pnpm dev -- --port $FrontendPort"
 )
