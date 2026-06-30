@@ -71,7 +71,7 @@ Response includes:
 - `actual_prices`: aligned daily prices.
 - `news`: latest yfinance news metadata when available.
 - `keywords`: frequency-based keywords from news titles.
-- `technical_analysis`: trend, momentum, risk, relative-strength scores and comparison verdict.
+- `technical_analysis`: trend, momentum, stability, relative-strength scores, indicator snapshot, comparison verdict, confidence reasons.
 - `research_note`: observations, hypotheses, backtest ideas, and limitations.
 - `markdown_note`: downloadable research-note text.
 - `warnings`: recoverable data, news, or AI warnings.
@@ -86,8 +86,17 @@ Technical-analysis excerpt:
       "total_score": 72,
       "trend_score": 25,
       "momentum_score": 19,
-      "risk_score": 13,
+      "stability_score": 13,
       "relative_strength_score": 15,
+      "indicators": {
+        "rsi_14": 68,
+        "return_20d": 0.08,
+        "return_60d": 0.2,
+        "downside_deviation": 0.18,
+        "max_drawdown": -0.12,
+        "price_above_sma_20": true,
+        "price_above_sma_60": true
+      },
       "data_sufficiency": "sufficient"
     },
     "ticker_b": {},
@@ -95,11 +104,26 @@ Technical-analysis excerpt:
       "leader": "NVDA",
       "score_difference": 14,
       "verdict": "현재 기술적 지표에서는 NVDA가 상대적으로 우세합니다.",
-      "confidence": "moderate"
+      "confidence": "moderate",
+      "component_wins": {
+        "ticker_a": 3,
+        "ticker_b": 1,
+        "ties": 0
+      },
+      "confidence_reasons": [
+        "두 종목 모두 60거래일 이상의 데이터가 있습니다.",
+        "NVDA가 네 영역 중 3개에서 우세하고 0개는 동점입니다."
+      ]
     }
   }
 }
 ```
+
+Notes:
+
+- `stability_score` is high when volatility, drawdown, downside deviation, and recent drawdown are relatively contained. It does not imply absence of future losses.
+- `downside_deviation` is calculated as `sqrt(mean(min(return, 0)^2)) * sqrt(252)`.
+- `confidence` is one of `low`, `moderate`, or `high`; it is not a return probability.
 
 ## Error Responses
 

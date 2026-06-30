@@ -17,6 +17,7 @@ from app.models import (
     NewsItem,
     Observation,
     ResearchNote,
+    TechnicalAnalysis,
 )
 
 
@@ -30,6 +31,33 @@ COMMON_UPPERCASE_TERMS = {
     "SMA",
     "USD",
 }
+
+FIXED_BACKTEST_PERIODS = {1, 5, 10, 14, 20, 60, 252}
+TRANSACTION_COST_PERCENTAGES = {0.0, 0.1}
+NEWS_ID_PATTERN = re.compile(r"\b[A-Z0-9.\-]+-news-\d+\b")
+NEWS_CLAIM_PATTERN = re.compile(r"뉴스|기사|키워드|이벤트")
+FORBIDDEN_FACT_OR_RECOMMENDATION_PHRASES = [
+    "매수해야",
+    "매도해야",
+    "추천 종목",
+    "목표주가",
+    "목표 주가",
+    "반드시 상승",
+    "상승 확률",
+    "미래 상승 확률",
+    "수익을 보장",
+    "매출",
+    "순이익",
+    "시장점유율",
+    "실적 성장률",
+    "거래량",
+    "기업가치",
+    "target price",
+    "price target",
+    "guaranteed",
+    "buy rating",
+    "sell rating",
+]
 
 
 def pct(value: float | None) -> str:
@@ -335,12 +363,124 @@ def _computed_percent_values(metrics: Metrics) -> list[float]:
     return [value * 100 for value in values]
 
 
+def _technical_percent_values(technical_analysis: TechnicalAnalysis | None) -> list[float]:
+    if technical_analysis is None:
+        return []
+    values: list[float] = []
+    for score in (technical_analysis.ticker_a, technical_analysis.ticker_b):
+        indicators = score.indicators
+        for value in (
+            indicators.return_20d,
+            indicators.return_60d,
+            indicators.annualized_volatility,
+            indicators.max_drawdown,
+            indicators.downside_deviation,
+            indicators.recent_20d_drawdown,
+        ):
+            if value is not None:
+                values.append(value * 100)
+    return values
+
+
+def _technical_score_values(technical_analysis: TechnicalAnalysis | None) -> list[float]:
+    if technical_analysis is None:
+        return []
+    values: list[float] = [technical_analysis.comparison.score_difference, 100.0, 30.0, 25.0, 20.0]
+    for score in (technical_analysis.ticker_a, technical_analysis.ticker_b):
+        values.extend(
+            [
+                score.total_score,
+                score.trend_score,
+                score.momentum_score,
+                score.stability_score,
+                score.relative_strength_score,
+            ]
+        )
+    return values
+
+
+def _technical_rsi_values(technical_analysis: TechnicalAnalysis | None) -> list[float]:
+    if technical_analysis is None:
+        return []
+    return [
+        score.indicators.rsi_14
+        for score in (technical_analysis.ticker_a, technical_analysis.ticker_b)
+        if score.indicators.rsi_14 is not None
+    ]
+
+
+def _allowed_price_values(metrics: Metrics) -> list[float]:
+    return [
+        metrics.ticker_a.first_price,
+        metrics.ticker_a.last_price,
+        metrics.ticker_b.first_price,
+        metrics.ticker_b.last_price,
+    ]
+
+
+def _approximately_allowed(value: float, allowed_values: list[float] | set[float], tolerance: float) -> bool:
+    return any(abs(value - allowed) <= tolerance for allowed in allowed_values)
+
+
+def _news_context(news: dict[str, list[NewsItem]]) -> tuple[dict[str, list[dict[str, Any]]], set[str]]:
+    context: dict[str, list[dict[str, Any]]] = {}
+    valid_ids: set[str] = set()
+    for ticker, items in news.items():
+        ticker_ids: list[dict[str, Any]] = []
+        normalized_ticker = ticker.upper()
+        for index, item in enumerate(items, start=1):
+            if not item.title.strip():
+                continue
+            news_id = f"{normalized_ticker}-news-{index}"
+            valid_ids.add(news_id)
+            payload = item.model_dump(exclude_none=True)
+            payload["id"] = news_id
+            ticker_ids.append(payload)
+        context[normalized_ticker] = ticker_ids
+    return context, valid_ids
+
+
+def _hypothesis_and_backtest_blocks(note: ResearchNote) -> list[str]:
+    blocks: list[str] = []
+    for hypothesis in note.hypotheses:
+        blocks.append(
+            " ".join(
+                [
+                    hypothesis.title,
+                    hypothesis.hypothesis,
+                    " ".join(hypothesis.supporting_evidence),
+                    " ".join(hypothesis.counter_evidence),
+                    hypothesis.test_method,
+                    " ".join(hypothesis.required_data),
+                    " ".join(hypothesis.risks),
+                ]
+            )
+        )
+    for idea in note.backtest_ideas:
+        blocks.append(
+            " ".join(
+                [
+                    idea.title,
+                    idea.entry_rule,
+                    idea.exit_rule,
+                    idea.holding_period,
+                    idea.benchmark,
+                    idea.transaction_cost_assumption,
+                    idea.lookahead_warning,
+                    idea.overfitting_warning,
+                ]
+            )
+        )
+    return blocks
+
+
 def validate_research_note_semantics(
     note: ResearchNote,
     request: CompareRequest,
     metrics: Metrics,
     news_availability: NewsAvailability,
     news: dict[str, list[NewsItem]],
+    technical_analysis: TechnicalAnalysis | None = None,
 ) -> list[str]:
     errors: list[str] = []
     text = _note_search_text(note)
@@ -363,39 +503,88 @@ def validate_research_note_semantics(
     if news_availability.status.startswith("only_") and re.search(r"뉴스\s*키워드\s*차이|두\s*종목의\s*뉴스\s*차이", hypothesis_text):
         errors.append("한 종목만 뉴스가 있는데 두 종목의 뉴스 차이를 단정했습니다.")
 
-    forbidden_phrases = [
-        "매수해야",
-        "매도해야",
-        "추천 종목",
-        "목표주가",
-        "반드시 상승",
-        "상승 확률",
-        "수익을 보장",
-        "target price",
-        "guaranteed",
-    ]
     lowered = text.lower()
-    for phrase in forbidden_phrases:
+    for phrase in FORBIDDEN_FACT_OR_RECOMMENDATION_PHRASES:
         if phrase.lower() in lowered:
-            errors.append(f"투자 추천 또는 보장 표현이 포함되었습니다: {phrase}")
+            errors.append(f"지원되지 않는 재무 수치, 투자 추천 또는 보장 표현이 포함되었습니다: {phrase}")
             break
 
-    # Keep numeric validation deliberately narrow. Percentages are where unsupported
-    # precision most often appears; free-form integers such as 20 trading days are
-    # already constrained by the prompt and fixed backtest templates.
-    allowed_percentages = _computed_percent_values(metrics)
+    allowed_percentages = [
+        *_computed_percent_values(metrics),
+        *_technical_percent_values(technical_analysis),
+        *TRANSACTION_COST_PERCENTAGES,
+    ]
     for match in re.findall(r"[-+]?\d+(?:\.\d+)?\s*%", text):
         value = float(match.replace("%", "").strip())
-        if not any(abs(value - allowed) <= 0.15 for allowed in allowed_percentages):
+        if not _approximately_allowed(value, allowed_percentages, 0.15):
             errors.append(f"계산 결과에 없는 퍼센트 수치가 포함되었습니다: {match}")
             break
+
+    allowed_prices = _allowed_price_values(metrics)
+    for match in re.findall(r"\$\s*([-+]?\d+(?:\.\d+)?)", text):
+        value = float(match)
+        if not _approximately_allowed(value, allowed_prices, 0.05):
+            errors.append(f"계산 결과에 없는 달러 가격이 포함되었습니다: ${match}")
+            break
+
+    allowed_days = {metrics.common.trading_days, metrics.ticker_a.trading_days, metrics.ticker_b.trading_days}
+    allowed_days.update(FIXED_BACKTEST_PERIODS)
+    for match in re.findall(r"(?<![\d.])(\d+)\s*(?:거래일|trading days|trading day)", text, flags=re.IGNORECASE):
+        value = int(match)
+        if value not in allowed_days:
+            errors.append(f"허용되지 않은 거래일 수가 포함되었습니다: {match}")
+            break
+
+    if metrics.common.correlation is not None:
+        allowed_correlations = [metrics.common.correlation]
+        for match in re.findall(r"(?:상관계수|correlation)[^\d\-+]{0,12}([-+]?\d+(?:\.\d+)?)", text, flags=re.IGNORECASE):
+            value = float(match)
+            if not _approximately_allowed(value, allowed_correlations, 0.01):
+                errors.append(f"계산 결과에 없는 상관계수가 포함되었습니다: {match}")
+                break
+
+    allowed_scores = _technical_score_values(technical_analysis)
+    if allowed_scores:
+        for match in re.findall(r"(?<![\d.])(\d+(?:\.\d+)?)\s*점", text):
+            value = float(match)
+            if not _approximately_allowed(value, allowed_scores, 0.15):
+                errors.append(f"계산 결과에 없는 기술적 점수가 포함되었습니다: {match}점")
+                break
+
+    allowed_rsi = _technical_rsi_values(technical_analysis)
+    if allowed_rsi:
+        for raw in re.findall(r"RSI(?:\s*14)?[^\d]{0,12}(\d+(?:\.\d+)?)", text):
+            value = float(raw)
+            if not _approximately_allowed(value, allowed_rsi, 0.15):
+                errors.append(f"계산 결과에 없는 RSI 수치가 포함되었습니다: {raw}")
+                break
+
+    _, valid_news_ids = _news_context(news)
+    referenced_news_ids = set(NEWS_ID_PATTERN.findall(text))
+    invalid_news_ids = referenced_news_ids - valid_news_ids
+    if invalid_news_ids:
+        errors.append(f"제공되지 않은 뉴스 ID가 사용되었습니다: {sorted(invalid_news_ids)[0]}")
+
+    if valid_news_ids:
+        for block in _hypothesis_and_backtest_blocks(note):
+            if NEWS_CLAIM_PATTERN.search(block) and not (set(NEWS_ID_PATTERN.findall(block)) & valid_news_ids):
+                errors.append("뉴스 기반 가설 또는 백테스트 아이디어에 제공된 뉴스 ID가 없습니다.")
+                break
 
     if news_availability.status == "none_available":
         return errors
 
     actual_titles = " ".join(item.title for items in news.values() for item in items).lower()
     if actual_titles:
-        for quoted in re.findall(r"[\"“”']([^\"“”']{8,})[\"“”']", text):
+        raw_note_text = " ".join(
+            [
+                note.summary,
+                *[item.title + " " + item.evidence for item in note.observations],
+                *_hypothesis_and_backtest_blocks(note),
+                " ".join(note.limitations),
+            ]
+        )
+        for quoted in re.findall(r"[“”]([^“”]{8,})[“”]", raw_note_text):
             if quoted.lower() not in actual_titles:
                 errors.append("실제 뉴스 제목에 없는 인용문이 근거로 사용되었습니다.")
                 break
@@ -408,6 +597,7 @@ def generate_openai_note(
     news: dict[str, list[NewsItem]],
     keywords: dict[str, list[KeywordCount]],
     fallback_note: ResearchNote,
+    technical_analysis: TechnicalAnalysis | None = None,
 ) -> tuple[ResearchNote, bool, str | None]:
     settings = get_settings()
     if not settings.openai_api_key:
@@ -420,22 +610,29 @@ def generate_openai_note(
 
     client = OpenAI(api_key=settings.openai_api_key)
     availability = determine_news_availability(request.ticker_a, request.ticker_b, news)
+    news_context, valid_news_ids = _news_context(news)
     context: dict[str, Any] = {
         "request": request.model_dump(),
         "metrics": metrics.model_dump(),
+        "technical_analysis": technical_analysis.model_dump() if technical_analysis else None,
         "news_availability": availability.model_dump(),
-        "news_titles": {
-            ticker: [item.model_dump(exclude_none=True) for item in items]
-            for ticker, items in news.items()
-        },
+        "news_titles": news_context,
+        "valid_news_ids": sorted(valid_news_ids),
         "keywords": {
             ticker: [item.model_dump() for item in items] for ticker, items in keywords.items()
         },
         "rules": [
-            "Do not create numbers that are not present in metrics.",
+            "Use backend-computed metrics and technical_analysis numbers exactly; do not create new scores.",
+            "stability_score means price-flow stability, not higher risk.",
+            "Do not create numbers that are not present in metrics or technical_analysis.",
+            "Do not invent revenue, net income, market share, valuation, volume, target price, growth rate, or future upside probability.",
             "Do not invent news, events, or financial facts.",
+            "News-based claims must cite supplied news IDs such as [NVDA-news-1] in the text.",
             "If news_availability.status is none_available, do not create news-based hypotheses or news event studies.",
             "If only one ticker has news, do not claim a two-ticker news frequency or keyword comparison.",
+            "If news data is thin, use price-data hypotheses instead.",
+            "Do not describe technical leadership as a buy recommendation or future return forecast.",
+            "confidence is not a probability.",
             "Use exactly three hypotheses only when the supplied data supports them.",
             "Avoid buy, sell, target price, guarantee, or probability claims.",
             "Respond in Korean JSON matching the schema.",
@@ -461,16 +658,24 @@ def generate_openai_note(
     try:
         raw = call_model()
         note = parse_ai_response_or_fallback(raw, fallback_note)
-        errors = [] if note is fallback_note else validate_research_note_semantics(note, request, metrics, availability, news)
+        errors = (
+            []
+            if note is fallback_note
+            else validate_research_note_semantics(note, request, metrics, availability, news, technical_analysis)
+        )
         if note is fallback_note or errors:
             reason = "JSON schema failed." if note is fallback_note else "; ".join(errors)
             raw = call_model(
                 " Previous output failed validation: "
                 + reason
-                + " Return only valid JSON and obey news availability and numeric evidence rules."
+                + " Return only valid JSON and obey news ID, technical score, and numeric evidence rules."
             )
             note = parse_ai_response_or_fallback(raw, fallback_note)
-            errors = [] if note is fallback_note else validate_research_note_semantics(note, request, metrics, availability, news)
+            errors = (
+                []
+                if note is fallback_note
+                else validate_research_note_semantics(note, request, metrics, availability, news, technical_analysis)
+            )
             if note is fallback_note or errors:
                 detail = "구조 검증 실패" if note is fallback_note else "; ".join(errors)
                 return fallback_note, False, f"OpenAI 응답 의미 검증 실패: {detail}. 규칙 기반 분석을 사용했습니다."

@@ -4,9 +4,15 @@ import type { TechnicalAnalysis, TechnicalScore } from "@/lib/types";
 const SCORE_LABELS = [
   ["추세", "trend_score", 30],
   ["모멘텀", "momentum_score", 25],
-  ["위험", "risk_score", 25],
+  ["안정성", "stability_score", 25],
   ["상대 강도", "relative_strength_score", 20]
 ] as const;
+
+const CONFIDENCE_LABELS = {
+  low: "낮음",
+  moderate: "보통",
+  high: "높음"
+} as const;
 
 function interpretation(score: number): string {
   if (score >= 80) return "기술적 흐름이 매우 강함";
@@ -57,6 +63,11 @@ function ScoreDetail({ score }: { score: TechnicalScore }) {
         ))}
       </div>
 
+      <p className="mt-4 rounded-lg border border-line bg-canvas px-3 py-2 text-xs leading-5 text-muted">
+        안정성 점수는 변동성·최대 낙폭·하방편차를 기반으로 가격 흐름의 방어력을 요약합니다. 높은 점수가 미래
+        손실이 없음을 의미하지는 않습니다.
+      </p>
+
       <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
           <dt className="text-muted">RSI 14</dt>
@@ -67,12 +78,24 @@ function ScoreDetail({ score }: { score: TechnicalScore }) {
           <dd className="mt-1 font-semibold text-ink">{formatPercent(score.indicators.return_20d)}</dd>
         </div>
         <div>
-          <dt className="text-muted">20일선 위</dt>
+          <dt className="text-muted">60일 수익률</dt>
+          <dd className="mt-1 font-semibold text-ink">{formatPercent(score.indicators.return_60d)}</dd>
+        </div>
+        <div>
+          <dt className="text-muted">20일 이동평균선</dt>
           <dd className="mt-1 font-semibold text-ink">{statusText(score.indicators.price_above_sma_20)}</dd>
         </div>
         <div>
-          <dt className="text-muted">60일선 위</dt>
+          <dt className="text-muted">60일 이동평균선</dt>
           <dd className="mt-1 font-semibold text-ink">{statusText(score.indicators.price_above_sma_60)}</dd>
+        </div>
+        <div>
+          <dt className="text-muted">하방편차</dt>
+          <dd className="mt-1 font-semibold text-ink">{formatPercent(score.indicators.downside_deviation)}</dd>
+        </div>
+        <div>
+          <dt className="text-muted">최대 낙폭</dt>
+          <dd className="mt-1 font-semibold text-ink">{formatPercent(score.indicators.max_drawdown)}</dd>
         </div>
       </dl>
 
@@ -113,6 +136,9 @@ function ScoreDetail({ score }: { score: TechnicalScore }) {
 }
 
 export function TechnicalAnalysisSection({ technicalAnalysis }: { technicalAnalysis: TechnicalAnalysis }) {
+  const confidenceLabel = CONFIDENCE_LABELS[technicalAnalysis.comparison.confidence];
+  const confidenceReasons = technicalAnalysis.comparison.confidence_reasons.slice(0, 3);
+
   return (
     <section className="space-y-3">
       <div className="rounded-lg border border-line bg-panel p-4 shadow-soft">
@@ -123,7 +149,7 @@ export function TechnicalAnalysisSection({ technicalAnalysis }: { technicalAnaly
           </div>
           <div className="grid gap-1 text-sm text-muted sm:grid-cols-3 lg:text-right">
             <span>차이 {formatNumber(technicalAnalysis.comparison.score_difference, 1)}점</span>
-            <span>신뢰도 {technicalAnalysis.comparison.confidence}</span>
+            <span>신뢰도 {confidenceLabel}</span>
             <span>우위 {technicalAnalysis.comparison.leader ?? "중립"}</span>
           </div>
         </div>
@@ -131,6 +157,16 @@ export function TechnicalAnalysisSection({ technicalAnalysis }: { technicalAnaly
           기술적 매력도 점수는 최근 가격 흐름을 규칙 기반으로 요약한 값이며, 기업의 내재가치나 미래
           수익률을 의미하지 않습니다.
         </p>
+        <p className="mt-2 rounded-lg border border-line bg-canvas px-3 py-2 text-xs leading-5 text-muted">
+          신뢰도는 미래 수익 확률이 아니라 데이터 충분도, 점수 차이, 세부 지표의 방향 일치도를 나타냅니다.
+        </p>
+        {confidenceReasons.length ? (
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-xs leading-5 text-muted">
+            {confidenceReasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">

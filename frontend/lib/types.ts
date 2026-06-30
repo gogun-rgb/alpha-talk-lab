@@ -113,7 +113,7 @@ export interface TechnicalIndicators {
   return_60d?: number | null;
   annualized_volatility?: number | null;
   max_drawdown?: number | null;
-  downside_volatility?: number | null;
+  downside_deviation?: number | null;
   recent_20d_drawdown?: number | null;
   return_to_volatility?: number | null;
   price_above_sma_20?: boolean | null;
@@ -128,7 +128,7 @@ export interface TechnicalScore {
   total_score: number;
   trend_score: number;
   momentum_score: number;
-  risk_score: number;
+  stability_score: number;
   relative_strength_score: number;
   indicators: TechnicalIndicators;
   strengths: string[];
@@ -136,11 +136,19 @@ export interface TechnicalScore {
   data_sufficiency: "sufficient" | "partial" | "insufficient";
 }
 
+export interface ComponentWins {
+  ticker_a: number;
+  ticker_b: number;
+  ties: number;
+}
+
 export interface TechnicalComparison {
   leader: string | null;
   score_difference: number;
   verdict: string;
   confidence: "low" | "moderate" | "high";
+  component_wins: ComponentWins;
+  confidence_reasons: string[];
 }
 
 export interface TechnicalAnalysis {

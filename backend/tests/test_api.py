@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models import (
+    ComponentWins,
     CommonMetrics,
     CompanyInfo,
     CompareResponse,
@@ -50,7 +51,7 @@ def fake_response() -> CompareResponse:
             total_score=70,
             trend_score=20,
             momentum_score=18,
-            risk_score=17,
+            stability_score=17,
             relative_strength_score=15,
             indicators=TechnicalIndicators(rsi_14=55, return_20d=0.05),
             strengths=["최근 20거래일 수익률이 양수입니다."],
@@ -62,7 +63,7 @@ def fake_response() -> CompareResponse:
             total_score=62,
             trend_score=18,
             momentum_score=15,
-            risk_score=17,
+            stability_score=17,
             relative_strength_score=12,
             indicators=TechnicalIndicators(rsi_14=50, return_20d=0.02),
             strengths=[],
@@ -74,6 +75,8 @@ def fake_response() -> CompareResponse:
             score_difference=8,
             verdict="현재 기술적 지표에서는 NVDA가 상대적으로 우세합니다.",
             confidence="moderate",
+            component_wins=ComponentWins(ticker_a=3, ticker_b=0, ties=1),
+            confidence_reasons=["두 종목 모두 일부 지표만 계산 가능한 partial 데이터입니다."],
         ),
     )
     return CompareResponse(
@@ -143,3 +146,7 @@ def test_compare_response_schema(monkeypatch) -> None:
     assert "metrics" in body
     assert "normalized_prices" in body
     assert "technical_analysis" in body
+    score = body["technical_analysis"]["ticker_a"]
+    assert "stability_score" in score
+    assert "risk" + "_score" not in score
+    assert "component_wins" in body["technical_analysis"]["comparison"]

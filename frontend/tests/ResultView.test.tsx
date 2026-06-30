@@ -61,7 +61,7 @@ const result: CompareResponse = {
       total_score: 70,
       trend_score: 20,
       momentum_score: 18,
-      risk_score: 17,
+      stability_score: 17,
       relative_strength_score: 15,
       indicators: { rsi_14: 55, return_20d: 0.05, price_above_sma_20: true, price_above_sma_60: true },
       strengths: ["최근 20거래일 수익률이 양수입니다."],
@@ -73,7 +73,7 @@ const result: CompareResponse = {
       total_score: 62,
       trend_score: 18,
       momentum_score: 15,
-      risk_score: 17,
+      stability_score: 17,
       relative_strength_score: 12,
       indicators: { rsi_14: 50, return_20d: 0.02, price_above_sma_20: true, price_above_sma_60: true },
       strengths: [],
@@ -84,7 +84,9 @@ const result: CompareResponse = {
       leader: "NVDA",
       score_difference: 8,
       verdict: "현재 기술적 지표에서는 NVDA가 상대적으로 우세합니다.",
-      confidence: "moderate"
+      confidence: "moderate",
+      component_wins: { ticker_a: 3, ticker_b: 0, ties: 1 },
+      confidence_reasons: ["두 종목 모두 60거래일 이상의 데이터가 있습니다."]
     }
   },
   research_note: {

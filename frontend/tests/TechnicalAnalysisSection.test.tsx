@@ -9,7 +9,7 @@ const technicalAnalysis: TechnicalAnalysis = {
     total_score: 72,
     trend_score: 25,
     momentum_score: 19,
-    risk_score: 13,
+    stability_score: 13,
     relative_strength_score: 15,
     indicators: {
       sma_20: 120,
@@ -17,6 +17,8 @@ const technicalAnalysis: TechnicalAnalysis = {
       rsi_14: 68,
       return_20d: 0.08,
       return_60d: 0.2,
+      downside_deviation: 0.18,
+      max_drawdown: -0.12,
       price_above_sma_20: true,
       price_above_sma_60: true
     },
@@ -29,11 +31,14 @@ const technicalAnalysis: TechnicalAnalysis = {
     total_score: 58,
     trend_score: 18,
     momentum_score: 14,
-    risk_score: 16,
+    stability_score: 16,
     relative_strength_score: 10,
     indicators: {
       rsi_14: 48,
       return_20d: -0.01,
+      return_60d: 0.04,
+      downside_deviation: 0.2,
+      max_drawdown: -0.18,
       price_above_sma_20: false,
       price_above_sma_60: null
     },
@@ -45,7 +50,9 @@ const technicalAnalysis: TechnicalAnalysis = {
     leader: "NVDA",
     score_difference: 14,
     verdict: "현재 기술적 지표에서는 NVDA가 상대적으로 우세합니다.",
-    confidence: "moderate"
+    confidence: "moderate",
+    component_wins: { ticker_a: 3, ticker_b: 1, ties: 0 },
+    confidence_reasons: ["두 종목 모두 60거래일 이상의 데이터가 있습니다.", "NVDA가 네 영역 중 3개에서 우세합니다."]
   }
 };
 
@@ -58,6 +65,13 @@ describe("TechnicalAnalysisSection", () => {
     expect(screen.getByText("현재 기술적 지표에서는 NVDA가 상대적으로 우세합니다.")).toBeInTheDocument();
     expect(screen.getByText("현재 가격이 20일 및 60일 이동평균선 위에 있습니다.")).toBeInTheDocument();
     expect(screen.getByText("RSI가 과열 경계 구간에 있습니다.")).toBeInTheDocument();
+    expect(screen.getAllByText("안정성")).toHaveLength(2);
+    expect(screen.queryByText("위" + "험")).not.toBeInTheDocument();
+    expect(screen.getAllByText("하방편차")).toHaveLength(2);
+    expect(screen.getByText("신뢰도 보통")).toBeInTheDocument();
+    expect(screen.getByText("신뢰도는 미래 수익 확률이 아니라 데이터 충분도, 점수 차이, 세부 지표의 방향 일치도를 나타냅니다.")).toBeInTheDocument();
+    expect(screen.getByText("NVDA가 네 영역 중 3개에서 우세합니다.")).toBeInTheDocument();
+    expect(screen.getAllByText(/높은 점수가 미래 손실이 없음을 의미하지는 않습니다/)).toHaveLength(2);
   });
 
   it("renders neutral wording for a small score difference", () => {
@@ -69,13 +83,16 @@ describe("TechnicalAnalysisSection", () => {
             leader: null,
             score_difference: 2,
             verdict: "두 종목의 기술적 매력도에 뚜렷한 우열이 없습니다.",
-            confidence: "low"
+            confidence: "low",
+            component_wins: { ticker_a: 0, ticker_b: 0, ties: 4 },
+            confidence_reasons: ["총점 차이가 2.0점으로 4점 미만입니다."]
           }
         }}
       />
     );
     expect(screen.getByText("두 종목의 기술적 매력도에 뚜렷한 우열이 없습니다.")).toBeInTheDocument();
     expect(screen.getByText("우위 중립")).toBeInTheDocument();
+    expect(screen.getByText("신뢰도 낮음")).toBeInTheDocument();
   });
 
   it("shows data sufficiency warning for partial inputs", () => {

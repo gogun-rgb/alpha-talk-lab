@@ -70,7 +70,10 @@ def _markdown(response: CompareResponse) -> str:
         "## 기술적 매력도",
         f"- {a} 총점: {response.technical_analysis.ticker_a.total_score}",
         f"- {b} 총점: {response.technical_analysis.ticker_b.total_score}",
+        f"- {a} 안정성 점수: {response.technical_analysis.ticker_a.stability_score}",
+        f"- {b} 안정성 점수: {response.technical_analysis.ticker_b.stability_score}",
         f"- 판정: {response.technical_analysis.comparison.verdict}",
+        f"- 신뢰도: {response.technical_analysis.comparison.confidence}",
         "- 기술적 매력도는 매수 추천 점수가 아니며 미래 수익률을 의미하지 않습니다.",
         "",
         "## 관찰",
@@ -168,6 +171,7 @@ def compare_tickers(request: CompareRequest) -> CompareResponse:
         news={ticker_a: news_a, ticker_b: news_b},
         keywords=keywords,
         fallback_note=fallback,
+        technical_analysis=technical_analysis,
     )
     if ai_warning:
         warnings.append(ai_warning)

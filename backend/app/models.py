@@ -166,7 +166,7 @@ class TechnicalIndicators(BaseModel):
     return_60d: float | None = None
     annualized_volatility: float | None = None
     max_drawdown: float | None = None
-    downside_volatility: float | None = None
+    downside_deviation: float | None = None
     recent_20d_drawdown: float | None = None
     return_to_volatility: float | None = None
     price_above_sma_20: bool | None = None
@@ -181,7 +181,7 @@ class TechnicalScore(BaseModel):
     total_score: float
     trend_score: float
     momentum_score: float
-    risk_score: float
+    stability_score: float
     relative_strength_score: float
     indicators: TechnicalIndicators
     strengths: list[str]
@@ -189,11 +189,19 @@ class TechnicalScore(BaseModel):
     data_sufficiency: DataSufficiency
 
 
+class ComponentWins(BaseModel):
+    ticker_a: int
+    ticker_b: int
+    ties: int
+
+
 class TechnicalComparison(BaseModel):
     leader: str | None
     score_difference: float
     verdict: str
     confidence: TechnicalConfidence
+    component_wins: ComponentWins
+    confidence_reasons: list[str] = Field(default_factory=list)
 
 
 class TechnicalAnalysis(BaseModel):
