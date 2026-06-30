@@ -1,4 +1,5 @@
 import { formatNumber, formatPercent } from "@/lib/format";
+import { normalizeTechnicalAnalysis, TECHNICAL_ANALYSIS_SHAPE_ERROR } from "@/lib/normalize";
 import type { TechnicalAnalysis, TechnicalScore } from "@/lib/types";
 
 const SCORE_LABELS = [
@@ -135,9 +136,23 @@ function ScoreDetail({ score }: { score: TechnicalScore }) {
   );
 }
 
-export function TechnicalAnalysisSection({ technicalAnalysis }: { technicalAnalysis: TechnicalAnalysis }) {
-  const confidenceLabel = CONFIDENCE_LABELS[technicalAnalysis.comparison.confidence];
-  const confidenceReasons = technicalAnalysis.comparison.confidence_reasons.slice(0, 3);
+export function TechnicalAnalysisSection({ technicalAnalysis }: { technicalAnalysis: TechnicalAnalysis | null | undefined }) {
+  const safeTechnicalAnalysis = normalizeTechnicalAnalysis(technicalAnalysis);
+
+  if (!safeTechnicalAnalysis) {
+    return (
+      <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 shadow-soft">
+        <h2 className="text-base font-semibold">기술적 매력도 비교</h2>
+        <p className="mt-2">{TECHNICAL_ANALYSIS_SHAPE_ERROR}</p>
+        <p className="mt-1">기술적 분석 결과 일부를 표시할 수 없습니다. 서버를 다시 시작한 후 재분석해 주세요.</p>
+      </section>
+    );
+  }
+
+  const confidenceLabel = CONFIDENCE_LABELS[safeTechnicalAnalysis.comparison.confidence];
+  const confidenceReasons = Array.isArray(safeTechnicalAnalysis.comparison.confidence_reasons)
+    ? safeTechnicalAnalysis.comparison.confidence_reasons.slice(0, 3)
+    : [];
 
   return (
     <section className="space-y-3">
@@ -145,12 +160,12 @@ export function TechnicalAnalysisSection({ technicalAnalysis }: { technicalAnaly
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-base font-semibold text-ink">기술적 매력도 비교</h2>
-            <p className="mt-2 text-sm leading-6 text-muted">{technicalAnalysis.comparison.verdict}</p>
+            <p className="mt-2 text-sm leading-6 text-muted">{safeTechnicalAnalysis.comparison.verdict}</p>
           </div>
           <div className="grid gap-1 text-sm text-muted sm:grid-cols-3 lg:text-right">
-            <span>차이 {formatNumber(technicalAnalysis.comparison.score_difference, 1)}점</span>
+            <span>차이 {formatNumber(safeTechnicalAnalysis.comparison.score_difference, 1)}점</span>
             <span>신뢰도 {confidenceLabel}</span>
-            <span>우위 {technicalAnalysis.comparison.leader ?? "중립"}</span>
+            <span>우위 {safeTechnicalAnalysis.comparison.leader ?? "중립"}</span>
           </div>
         </div>
         <p className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2 text-xs leading-5 text-muted">
@@ -170,8 +185,8 @@ export function TechnicalAnalysisSection({ technicalAnalysis }: { technicalAnaly
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <ScoreDetail score={technicalAnalysis.ticker_a} />
-        <ScoreDetail score={technicalAnalysis.ticker_b} />
+        <ScoreDetail score={safeTechnicalAnalysis.ticker_a} />
+        <ScoreDetail score={safeTechnicalAnalysis.ticker_b} />
       </div>
     </section>
   );

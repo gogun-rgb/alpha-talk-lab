@@ -177,7 +177,7 @@ export interface CompareResponse {
   actual_prices: ActualPricePoint[];
   news: Record<string, NewsItem[]>;
   keywords: Record<string, KeywordCount[]>;
-  technical_analysis: TechnicalAnalysis;
+  technical_analysis: TechnicalAnalysis | null;
   research_note: ResearchNote;
   markdown_note: string;
   warnings: string[];

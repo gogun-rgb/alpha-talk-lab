@@ -130,4 +130,11 @@ describe("ResultView", () => {
     expect(screen.getByRole("button", { name: "복사" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "다운로드" })).toBeInTheDocument();
   });
+
+  it("keeps the rest of the result visible when technical analysis is missing", () => {
+    render(<ResultView result={{ ...result, technical_analysis: null }} onReset={vi.fn()} />);
+    expect(screen.getByText("기술적 분석 결과 형식이 올바르지 않습니다. 백엔드를 다시 실행한 뒤 재시도해 주세요.")).toBeInTheDocument();
+    expect(screen.getByText("공통 지표")).toBeInTheDocument();
+    expect(screen.getByText("검증되지 않은 투자 가설")).toBeInTheDocument();
+  });
 });

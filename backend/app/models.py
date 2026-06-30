@@ -183,16 +183,16 @@ class TechnicalScore(BaseModel):
     momentum_score: float
     stability_score: float
     relative_strength_score: float
-    indicators: TechnicalIndicators
-    strengths: list[str]
-    weaknesses: list[str]
+    indicators: TechnicalIndicators = Field(default_factory=TechnicalIndicators)
+    strengths: list[str] = Field(default_factory=list)
+    weaknesses: list[str] = Field(default_factory=list)
     data_sufficiency: DataSufficiency
 
 
 class ComponentWins(BaseModel):
-    ticker_a: int
-    ticker_b: int
-    ties: int
+    ticker_a: int = 0
+    ticker_b: int = 0
+    ties: int = 0
 
 
 class TechnicalComparison(BaseModel):
@@ -200,7 +200,7 @@ class TechnicalComparison(BaseModel):
     score_difference: float
     verdict: str
     confidence: TechnicalConfidence
-    component_wins: ComponentWins
+    component_wins: ComponentWins = Field(default_factory=ComponentWins)
     confidence_reasons: list[str] = Field(default_factory=list)
 
 

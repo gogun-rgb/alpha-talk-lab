@@ -149,4 +149,12 @@ def test_compare_response_schema(monkeypatch) -> None:
     score = body["technical_analysis"]["ticker_a"]
     assert "stability_score" in score
     assert "risk" + "_score" not in score
-    assert "component_wins" in body["technical_analysis"]["comparison"]
+    assert "strengths" in score
+    assert "weaknesses" in score
+    assert "indicators" in score
+    assert "downside_deviation" in score["indicators"]
+    comparison = body["technical_analysis"]["comparison"]
+    assert "component_wins" in comparison
+    assert comparison["component_wins"] == {"ticker_a": 3, "ticker_b": 0, "ties": 1}
+    assert "confidence_reasons" in comparison
+    assert comparison["confidence_reasons"]

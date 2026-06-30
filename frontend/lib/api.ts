@@ -1,4 +1,5 @@
 import type { CompareRequest, CompareResponse, QueryParseResponse } from "./types";
+import { normalizeCompareResponse } from "./normalize";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -37,8 +38,8 @@ export function parseQuery(query: string): Promise<QueryParseResponse> {
 }
 
 export function compareStocks(payload: CompareRequest): Promise<CompareResponse> {
-  return requestJson<CompareResponse>("/api/research/compare", {
+  return requestJson<unknown>("/api/research/compare", {
     method: "POST",
     body: JSON.stringify(payload)
-  });
+  }).then(normalizeCompareResponse);
 }

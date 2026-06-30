@@ -99,4 +99,64 @@ describe("TechnicalAnalysisSection", () => {
     render(<TechnicalAnalysisSection technicalAnalysis={technicalAnalysis} />);
     expect(screen.getAllByText("선택한 기간이 짧아 일부 중기 지표가 제외되었습니다.").length).toBeGreaterThan(0);
   });
+
+  it("renders without confidence reasons from an older response", () => {
+    const legacy = {
+      ...technicalAnalysis,
+      comparison: {
+        leader: "NVDA",
+        score_difference: 14,
+        verdict: "현재 기술적 지표에서는 NVDA가 상대적으로 우세합니다.",
+        confidence: "moderate"
+      }
+    } as unknown as TechnicalAnalysis;
+
+    render(<TechnicalAnalysisSection technicalAnalysis={legacy} />);
+    expect(screen.getByText("72.0")).toBeInTheDocument();
+    expect(screen.getByText("신뢰도 보통")).toBeInTheDocument();
+    expect(screen.queryByText("NVDA가 네 영역 중 3개에서 우세합니다.")).not.toBeInTheDocument();
+  });
+
+  it("renders without component wins from an older response", () => {
+    const legacy = {
+      ...technicalAnalysis,
+      comparison: {
+        leader: "NVDA",
+        score_difference: 14,
+        verdict: "현재 기술적 지표에서는 NVDA가 상대적으로 우세합니다.",
+        confidence: "moderate",
+        confidence_reasons: []
+      }
+    } as unknown as TechnicalAnalysis;
+
+    render(<TechnicalAnalysisSection technicalAnalysis={legacy} />);
+    expect(screen.getByText("기술적 매력도 비교")).toBeInTheDocument();
+    expect(screen.getByText("신뢰도 보통")).toBeInTheDocument();
+  });
+
+  it("uses empty states when strengths and weaknesses are missing", () => {
+    const legacy = {
+      ...technicalAnalysis,
+      ticker_a: {
+        ...technicalAnalysis.ticker_a,
+        strengths: undefined,
+        weaknesses: undefined
+      },
+      ticker_b: {
+        ...technicalAnalysis.ticker_b,
+        strengths: undefined,
+        weaknesses: undefined
+      }
+    } as unknown as TechnicalAnalysis;
+
+    render(<TechnicalAnalysisSection technicalAnalysis={legacy} />);
+    expect(screen.getAllByText("뚜렷한 강점이 충분하지 않습니다.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("뚜렷한 약점이 충분하지 않습니다.").length).toBeGreaterThan(0);
+  });
+
+  it("shows a friendly error when technical analysis is missing", () => {
+    render(<TechnicalAnalysisSection technicalAnalysis={null} />);
+    expect(screen.getByText("기술적 분석 결과 형식이 올바르지 않습니다. 백엔드를 다시 실행한 뒤 재시도해 주세요.")).toBeInTheDocument();
+    expect(screen.getByText("기술적 분석 결과 일부를 표시할 수 없습니다. 서버를 다시 시작한 후 재분석해 주세요.")).toBeInTheDocument();
+  });
 });
